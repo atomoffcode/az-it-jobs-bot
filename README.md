@@ -54,7 +54,25 @@ get notified about genuinely new postings.
 
 ## Keeping it running
 
-This is a long-lived Node process — pick one:
+**Deployed:** this bot runs as a [Cloud Run Job](https://cloud.google.com/run/docs/create-jobs)
+(`az-it-jobs-bot`, project `project-41a3b98d-9769-4076-bb0`, region `europe-west1`),
+triggered hourly by a Cloud Scheduler job (`az-it-jobs-bot-hourly`, `0 * * * *` UTC).
+Each execution runs `node src/index.js --once` in the container built from the
+`Dockerfile`, with `data/` mounted to a GCS bucket
+(`az-it-jobs-bot-data-424894387810`) via Cloud Storage FUSE so the seen-jobs
+dedup state survives between runs (each execution otherwise gets a fresh,
+ephemeral filesystem).
+
+To redeploy after a code change:
+
+```
+gcloud run jobs deploy az-it-jobs-bot --source=. --region=europe-west1
+```
+
+(env vars and the volume mount are already baked into the job config, so a
+redeploy only needs `--source`.)
+
+For local development instead, pick one:
 
 - **Simplest:** leave a terminal open with `npm start` running.
 - **Windows Task Scheduler:** create a task that runs `npm run once` on a
@@ -75,14 +93,23 @@ This is a long-lived Node process — pick one:
 
 ## Adjusting keywords
 
-Edit the `KEYWORD_GROUPS` patterns in [src/filter.js](src/filter.js) to add,
-remove, or broaden the terms matched against job titles (e.g. add `network
-security`, `penetration test`, `SOC 2` variants, etc.).
+Most listings on Azerbaijani job boards are in Azerbaijani, not English, so
+`src/filter.js` matches both languages. It's split into:
+
+- `HELPDESK_PATTERNS` / `SECURITY_OR_PATTERNS` — single regexes, any match is
+  enough (e.g. `cyber\s?security`, `kiber\s?təhlükəsizl`).
+- `SECURITY_AND_GROUPS` — pairs of regexes that must **both** match, used for
+  ambiguous Azerbaijani terms like bare `təhlükəsizlik` ("security"), which
+  also shows up in unrelated physical-security/guard job titles. It only
+  counts combined with a qualifier like `əməliyyat` (operations) or `analitik`
+  (analyst).
+
+Edit these lists to add, remove, or broaden matched terms.
 
 ## Notes
 
-- Seen job IDs are stored locally in `data/seen.json` so you don't get
-  re-notified about the same posting across polls. Safe to delete if you want
-  a fresh backfill.
+- Seen job IDs are stored in `data/seen.json` (a GCS-backed mount in
+  production, a local file in dev) so you don't get re-notified about the
+  same posting across runs.
 - BirJob's scrapers run ~3x/day (Baku time), so hourly polling is more than
   enough to catch new postings promptly.
