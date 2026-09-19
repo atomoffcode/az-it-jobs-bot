@@ -8,7 +8,7 @@ async function runOnce() {
   console.log(`[${new Date().toISOString()}] Checking for new vacancies...`);
 
   const jobs = await fetchRecentJobs();
-  console.log(`Fetched ${jobs.length} jobs posted within ${config.postedWithin}`);
+  console.log(`Fetched ${jobs.length} recent jobs`);
 
   const relevant = filterRelevantJobs(jobs);
   const unseenIds = new Set(filterUnseen(relevant.map((r) => r.job)).map((j) => j.id));
@@ -32,7 +32,12 @@ async function runOnce() {
 async function main() {
   const once = process.argv.includes('--once');
 
-  await runOnce().catch((err) => console.error('Run failed:', err.message));
+  // Fail the Cloud Run execution on error so broken runs are visible in the
+  // console instead of counting as successes.
+  await runOnce().catch((err) => {
+    console.error('Run failed:', err.message);
+    process.exitCode = 1;
+  });
 
   if (once) return;
 
