@@ -1,49 +1,33 @@
-import { config } from './config.js';
+// BirJob retired its authenticated v1 API (HTTP 410 since 2026-07-31). The
+// replacement is a single public endpoint returning the 50 most recent active
+// listings as JSON — no API key, 10-minute edge cache.
+const JOBS_URL = 'https://www.birjob.com/api/llm/jobs';
 
-const BASE_URL = 'https://www.birjob.com/api/v1';
-
-function extractJobs(payload) {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload.jobs)) return payload.jobs;
-  if (Array.isArray(payload.data)) return payload.data;
-  if (Array.isArray(payload.results)) return payload.results;
-  return [];
+// Normalize to the shape the rest of the bot expects (id for dedup in
+// store.js, apply_link for telegram.js). The canonical job slug from
+// apply_url (e.g. "qalan-az-8421480") serves as a stable id.
+function normalize(job) {
+  const slug = (job.apply_url || '').match(/\/jobs\/([^/?#]+)/)?.[1];
+  return {
+    id: slug || `${job.title}|${job.company}|${job.posted_at}`,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    source: job.source,
+    posted_at: job.posted_at,
+    apply_link: job.apply_url,
+  };
 }
 
-async function fetchPage(page) {
-  const url = new URL(`${BASE_URL}/jobs`);
-  url.searchParams.set('posted_within', config.postedWithin);
-  url.searchParams.set('limit', '100');
-  url.searchParams.set('page', String(page));
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${config.birjobApiKey}` },
-  });
-
-  if (res.status === 429) {
-    const retryAfter = Number(res.headers.get('Retry-After') || 60);
-    console.warn(`BirJob rate limited, waiting ${retryAfter}s before retrying page ${page}`);
-    await new Promise((r) => setTimeout(r, retryAfter * 1000));
-    return fetchPage(page);
-  }
+export async function fetchRecentJobs() {
+  const res = await fetch(JOBS_URL, { headers: { Accept: 'application/json' } });
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`BirJob API error ${res.status}: ${body}`);
   }
 
-  return res.json();
-}
-
-// Fetches recently posted jobs across all ~91 aggregated AZ sources, paginating
-// up to config.maxPages (100 jobs/page) to bound API quota usage per check.
-export async function fetchRecentJobs() {
-  const jobs = [];
-  for (let page = 1; page <= config.maxPages; page++) {
-    const payload = await fetchPage(page);
-    const pageJobs = extractJobs(payload);
-    jobs.push(...pageJobs);
-    if (pageJobs.length < 100) break; // no more pages
-  }
-  return jobs;
+  const payload = await res.json();
+  const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
+  return jobs.map(normalize);
 }

@@ -13,8 +13,5 @@ function required(name) {
 export const config = {
   telegramBotToken: required('TELEGRAM_BOT_TOKEN'),
   telegramChatId: required('TELEGRAM_CHAT_ID'),
-  birjobApiKey: required('BIRJOB_API_KEY'),
   pollIntervalMinutes: Number(process.env.POLL_INTERVAL_MINUTES || 60),
-  maxPages: Number(process.env.MAX_PAGES || 3),
-  postedWithin: process.env.POSTED_WITHIN || '24h',
 };
