@@ -114,6 +114,11 @@ Categories are checked in order Helpdesk → Red Team → GRC → Blue Team, so 
 more specific category wins when a title fits several (e.g. "Information
 Security Compliance Officer" is GRC, not Blue Team).
 
+Azerbaijani capital `İ` is normalized to ASCII `I` before matching, because
+JavaScript regexes treat it neither as a case variant of `i` nor as a word
+character — without this, titles like "İnformasiya təhlükəsizliyi" or
+"İT dəstək" never match.
+
 Edit these lists to add, remove, or broaden matched terms.
 
 ## Notes

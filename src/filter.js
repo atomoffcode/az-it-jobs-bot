@@ -80,7 +80,10 @@ const GRC_AND_GROUPS = [
 ];
 
 export function categorize(job) {
-  const haystack = `${job.title || ''} ${job.job_function || ''}`;
+  // JS regexes don't treat Azerbaijani "İ" as a case variant of "i" (so /i
+  // misses "İnformasiya") nor as a word character (so \b misses "İT").
+  // Normalizing it to ASCII "I" lets every pattern below match it.
+  const haystack = `${job.title || ''} ${job.job_function || ''}`.replace(/İ/g, 'I');
 
   if (HELPDESK_PATTERNS.some((re) => re.test(haystack))) return 'Helpdesk';
 
