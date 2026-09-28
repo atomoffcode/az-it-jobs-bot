@@ -56,6 +56,29 @@ const RED_TEAM_PATTERNS = [
   /etik\s+hak/i, // AZ: "ethical hacker"
 ];
 
+// Security governance, risk & compliance. Unambiguous GRC terms and frameworks
+// match alone.
+const GRC_OR_PATTERNS = [
+  /\bgrc\b/i,
+  /governance,?\s+risk/i, // "Governance, Risk and Compliance"
+  /security\s+(compliance|governance|audit|risk)/i,
+  /\biso\s?(\/?\s?iec\s?)?27001/i,
+  /\bisms\b/i,
+  /pci[\s-]?dss/i,
+  /data\s+protection\s+officer/i,
+  /\b(cisa|cism|crisc)\b/i, // GRC certifications
+];
+
+// "compliance", "risk", "audit", "governance" alone are mostly banking and
+// finance roles, so they only count alongside an IT / infosec qualifier. Bare
+// "təhlükəsizlik" is deliberately not a qualifier: it also means occupational
+// and fire safety (HSE), which is common in AZ oil & gas postings.
+const GRC_TERM = /compliance|governance|audit|\brisk|uyğunluq/i;
+const GRC_AND_GROUPS = [
+  [GRC_TERM, /\b(IT|İT)\b/], // case-sensitive to avoid matching "it" (pronoun)
+  [GRC_TERM, /information\s+security|cyber|informasiya\s+təhlükəsizl|kiber\s?təhlükəsizl/i],
+];
+
 export function categorize(job) {
   const haystack = `${job.title || ''} ${job.job_function || ''}`;
 
@@ -65,6 +88,15 @@ export function categorize(job) {
   // blue-team OR patterns ("security engineer") and would misclassify.
   if (RED_TEAM_PATTERNS.some((re) => re.test(haystack))) {
     return 'Cyber Security (Red Team)';
+  }
+
+  // GRC before blue team: "Information Security Compliance Officer" also
+  // matches the blue-team pattern "information security".
+  if (
+    GRC_OR_PATTERNS.some((re) => re.test(haystack)) ||
+    GRC_AND_GROUPS.some((group) => group.every((re) => re.test(haystack)))
+  ) {
+    return 'Cyber Security (GRC)';
   }
 
   if (SECURITY_OR_PATTERNS.some((re) => re.test(haystack))) {

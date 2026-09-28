@@ -1,7 +1,7 @@
 # az-it-jobs-bot
 
 Telegram bot that alerts you when a new **Helpdesk**, **Cyber Security (Blue Team)**,
-or **Cyber Security (Red Team)** IT vacancy appears in Azerbaijan. It polls the [BirJob](https://www.birjob.com)
+**Cyber Security (Red Team)**, or **Cyber Security (GRC)** IT vacancy appears in Azerbaijan. It polls the [BirJob](https://www.birjob.com)
 public feed (`/api/llm/jobs` — the 50 most recent active listings, no API key
 needed), which aggregates dozens of Azerbaijani job sites (boss.az, hellojob.az,
 glorri.az, jobsearch.az, ejob.az, and more) into a single feed, filters listings
@@ -96,14 +96,23 @@ For local development instead, pick one:
 Most listings on Azerbaijani job boards are in Azerbaijani, not English, so
 `src/filter.js` matches both languages. It's split into:
 
-- `HELPDESK_PATTERNS` / `SECURITY_OR_PATTERNS` / `RED_TEAM_PATTERNS` — single
-  regexes, any match is enough (e.g. `cyber\s?security`, `kiber\s?təhlükəsizl`,
-  `red\s?team`, `pen[\s-]?test`).
+- `HELPDESK_PATTERNS` / `SECURITY_OR_PATTERNS` / `RED_TEAM_PATTERNS` /
+  `GRC_OR_PATTERNS` — single regexes, any match is enough (e.g.
+  `cyber\s?security`, `kiber\s?təhlükəsizl`, `red\s?team`, `pen[\s-]?test`,
+  `\bgrc\b`, `iso 27001`).
 - `SECURITY_AND_GROUPS` — pairs of regexes that must **both** match, used for
   ambiguous Azerbaijani terms like bare `təhlükəsizlik` ("security"), which
   also shows up in unrelated physical-security/guard job titles. It only
   counts combined with a qualifier like `əməliyyat` (operations) or `analitik`
   (analyst).
+- `GRC_AND_GROUPS` — `compliance`, `risk`, `audit`, `governance` and
+  `uyğunluq` on their own are mostly banking/finance roles (AML, credit risk,
+  internal audit), so they only count next to an IT or infosec qualifier
+  (`IT`, `cyber`, `information security`, `informasiya təhlükəsizliyi`).
+
+Categories are checked in order Helpdesk → Red Team → GRC → Blue Team, so the
+more specific category wins when a title fits several (e.g. "Information
+Security Compliance Officer" is GRC, not Blue Team).
 
 Edit these lists to add, remove, or broaden matched terms.
 
